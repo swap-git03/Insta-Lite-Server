@@ -18,7 +18,7 @@ router.post("/", protect, upload.single("image"), createPost);
 // All posts
 router.get("/", getAllPosts);
 
-// Feed
+// Feed (FIXED)
 router.get("/feed", protect, getFeed);
 
 // Edit caption

@@ -6,7 +6,10 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     dp: { type: String, default: "uploads/default_dp.png" },
-
+     bio: {
+    type: String,
+    default: ""
+  },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
   },

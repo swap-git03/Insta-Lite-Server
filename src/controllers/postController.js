@@ -39,6 +39,20 @@ exports.getAllPosts = async (req, res) => {
   }
 };
 
+// getFeedPosts
+exports.getFeed = async (req, res) => {
+  const user = await User.findById(req.user.id).select("following");
+  const ids = [req.user.id, ...user.following];
+
+  const posts = await Post.find({ user: { $in: ids } })
+    .populate("user", "username dp")
+    .populate("comments.user", "username dp")
+    .sort({ createdAt: -1 });
+
+  res.json(posts);
+};
+
+
 // LIKE POST
 exports.likePost = async (req, res) => {
   const { postId } = req.body;
@@ -46,15 +60,20 @@ exports.likePost = async (req, res) => {
   const post = await Post.findById(postId);
   if (!post) return res.status(404).json({ error: "Post not found" });
 
+  // If already liked → unlike
   if (post.likes.includes(req.user.id)) {
-    return res.status(400).json({ error: "Already liked" });
+    post.likes = post.likes.filter((id) => id.toString() !== req.user.id);
+    await post.save();
+    return res.json({ msg: "Post unliked", likes: post.likes });
   }
 
+  // If NOT liked → like
   post.likes.push(req.user.id);
   await post.save();
 
-  res.json({ msg: "Post liked" });
+  res.json({ msg: "Post liked", likes: post.likes });
 };
+
 
 // COMMENT POST
 exports.commentPost = async (req, res) => {
