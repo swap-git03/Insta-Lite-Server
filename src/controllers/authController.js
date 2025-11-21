@@ -3,29 +3,31 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 // REGISTER
+// REGISTER (Cloudinary Ready)
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // VALIDATION
     if (!username || !email || !password)
       return res.status(400).json({ error: "Username, email, and password are required" });
 
-    // CHECK DUPLICATES
-    const existingUser = await User.findOne({ 
-      $or: [{ username }, { email }] 
+    // Check if user exists
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }],
     });
 
     if (existingUser)
       return res.status(400).json({ error: "Username or Email already exists" });
 
-    // HASH PASSWORD
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // DP (OPTIONAL)
-    const dpPath = req.file ? req.file.path : "uploads/default_dp.png";
+    // If DP uploaded, Cloudinary gives URL in req.file.path
+    let dpPath = req.file?.path || null;
 
-    // CREATE USER
+    // Default DP if none uploaded
+    if (!dpPath) dpPath = "https://res.cloudinary.com/demo/image/upload/v1690000000/default_dp.png";
+
+    // Create user
     const user = await User.create({
       username,
       email,
@@ -45,9 +47,10 @@ exports.register = async (req, res) => {
 
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 };
+
 
 // LOGIN
 exports.login = async (req, res) => {

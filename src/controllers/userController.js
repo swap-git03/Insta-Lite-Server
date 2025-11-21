@@ -114,22 +114,25 @@ exports.getFollowing = async (req, res) => {
 };
 
 // UPDATE PROFILE
+// UPDATE PROFILE (Cloudinary Version)
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.params.id;
-    // only allow user to update their own profile
+
+    // Only allow the logged user to update their own profile
     if (req.user.id !== userId) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
     const updates = {};
+
+    // Username + Bio update
     if (req.body.username) updates.username = req.body.username;
     if (req.body.bio) updates.bio = req.body.bio;
 
-    // handle dp file
+    // DP update (Cloudinary URL arrives in req.file.path)
     if (req.file && req.file.path) {
-      // store path relative to server root (same style you're using elsewhere)
-      updates.dp = req.file.path;
+      updates.dp = req.file.path;   // Cloudinary URL
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -138,7 +141,11 @@ exports.updateProfile = async (req, res) => {
       { new: true }
     ).select("-password");
 
-    res.json({ msg: "Profile updated", user: updatedUser });
+    res.json({
+      msg: "Profile updated successfully",
+      user: updatedUser
+    });
+
   } catch (err) {
     console.error("Update Profile Error:", err);
     res.status(500).json({ error: "Server error" });
