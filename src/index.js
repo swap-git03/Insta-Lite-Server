@@ -6,7 +6,14 @@ const connectDB = require("./config/db");
 const app = express();
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://your-netlify-url.netlify.app"
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
