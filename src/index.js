@@ -11,13 +11,11 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",          // local dev frontend
-      "https://swapinsta.netlify.app"   // your REAL deployed frontend
-    ],
+    origin: process.env.ORIGIN,
     credentials: true,
   })
 );
+
 
 // Body parser
 app.use(express.json());
