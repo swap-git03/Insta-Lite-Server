@@ -1,11 +1,10 @@
 const User = require("../models/User");
 const Post = require("../models/Post");
 
-// GET PROFILE (works)
+// GET PROFILE
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .select("-password");
+    const user = await User.findById(req.params.id).select("-password");
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -15,11 +14,12 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// GET USER POSTS  (MISSING BEFORE)
+// GET USER POSTS
 exports.getUserPosts = async (req, res) => {
   try {
-    const posts = await Post.find({ user: req.params.id })
-      .sort({ createdAt: -1 });
+    const posts = await Post.find({ user: req.params.id }).sort({
+      createdAt: -1,
+    });
 
     res.json(posts);
   } catch (err) {
@@ -27,7 +27,7 @@ exports.getUserPosts = async (req, res) => {
   }
 };
 
-// Get ALL users
+// GET ALL USERS
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -43,7 +43,9 @@ exports.followUser = async (req, res) => {
     const userToFollow = await User.findById(req.params.id);
     const currentUser = await User.findById(req.user.id);
 
-    if (!userToFollow) return res.status(404).json({ error: "User not found" });
+    if (!userToFollow)
+      return res.status(404).json({ error: "User not found" });
+
     if (userToFollow._id.equals(currentUser._id))
       return res.status(400).json({ error: "Cannot follow yourself" });
 
@@ -68,10 +70,13 @@ exports.unfollowUser = async (req, res) => {
     const userToUnfollow = await User.findById(req.params.id);
     const currentUser = await User.findById(req.user.id);
 
-    if (!userToUnfollow) return res.status(404).json({ error: "User not found" });
+    if (!userToUnfollow)
+      return res.status(404).json({ error: "User not found" });
 
     if (!userToUnfollow.followers.includes(currentUser._id))
-      return res.status(400).json({ error: "Not following this user" });
+      return res
+        .status(400)
+        .json({ error: "Not following this user" });
 
     userToUnfollow.followers.pull(currentUser._id);
     currentUser.following.pull(userToUnfollow._id);
@@ -88,8 +93,10 @@ exports.unfollowUser = async (req, res) => {
 // GET FOLLOWERS
 exports.getFollowers = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .populate("followers", "username dp");
+    const user = await User.findById(req.params.id).populate(
+      "followers",
+      "username dp"
+    );
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -102,8 +109,10 @@ exports.getFollowers = async (req, res) => {
 // GET FOLLOWING
 exports.getFollowing = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .populate("following", "username dp");
+    const user = await User.findById(req.params.id).populate(
+      "following",
+      "username dp"
+    );
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -113,26 +122,25 @@ exports.getFollowing = async (req, res) => {
   }
 };
 
-const User = require("../models/User");
-const Post = require("../models/Post");
-
-// UPDATE PROFILE
+// UPDATE PROFILE (LOCAL UPLOADS VERSION)
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.params.id;
 
+    // Only allow the logged-in user to update their own profile
     if (req.user.id !== userId) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
     const updates = {};
 
+    // Username + Bio update
     if (req.body.username) updates.username = req.body.username;
     if (req.body.bio) updates.bio = req.body.bio;
 
-    // DP FIX — normalize slashes
+    // DP update (local upload: /uploads/<filename>)
     if (req.file) {
-      updates.dp = `uploads/${req.file.filename}`.replace(/\\/g, "/");
+      updates.dp = `/uploads/${req.file.filename}`.replace(/\\/g, "/");
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -143,11 +151,25 @@ exports.updateProfile = async (req, res) => {
 
     res.json({
       msg: "Profile updated successfully",
-      user: updatedUser
+      user: updatedUser,
     });
-
   } catch (err) {
     console.error("Update Profile Error:", err);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+// SEARCH USERS
+exports.searchUsers = async (req, res) => {
+  try {
+    const query = req.params.query;
+
+    const users = await User.find({
+      username: { $regex: query, $options: "i" },
+    }).select("username dp _id");
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

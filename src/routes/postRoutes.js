@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const protect = require("../middleware/auth");
 const upload = require("../middleware/multer");
 const {
@@ -9,16 +10,16 @@ const {
   commentPost,
   editPost,
   deletePost,
-  getFeed
+  getFeed,
 } = require("../controllers/postController");
 
-// Create post
+// Create post (with image)
 router.post("/", protect, upload.single("image"), createPost);
 
 // All posts
 router.get("/", getAllPosts);
 
-// Feed (FIXED)
+// Feed
 router.get("/feed", protect, getFeed);
 
 // Edit caption
