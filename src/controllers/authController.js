@@ -1,85 +1,167 @@
 const User = require("../models/User");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+const Post = require("../models/Post");
 
-// REGISTER
-exports.register = async (req, res) => {
+// GET PROFILE (works)
+exports.getProfile = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const user = await User.findById(req.params.id)
+      .select("-password");
 
-    if (!username || !email || !password)
-      return res.status(400).json({ error: "Username, email, and password are required" });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const existingUser = await User.findOne({
-      $or: [{ username }, { email }],
-    });
-
-    if (existingUser)
-      return res.status(400).json({ error: "Username or Email already exists" });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // FIXED — removes backslashes if multer creates them
-    let dpPath = req.file
-      ? `uploads/${req.file.filename}`.replace(/\\/g, "/")
-      : "default_dp.png";
-
-    const user = await User.create({
-      username,
-      email,
-      password: hashedPassword,
-      dp: dpPath,
-    });
-
-    res.status(201).json({
-      msg: "Account created successfully",
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        dp: user.dp,
-      },
-    });
-
+    res.json(user);
   } catch (err) {
-    console.error("Register Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET USER POSTS  (MISSING BEFORE)
+exports.getUserPosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ user: req.params.id })
+      .sort({ createdAt: -1 });
+
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get ALL users
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// FOLLOW USER
+exports.followUser = async (req, res) => {
+  try {
+    const userToFollow = await User.findById(req.params.id);
+    const currentUser = await User.findById(req.user.id);
+
+    if (!userToFollow) return res.status(404).json({ error: "User not found" });
+    if (userToFollow._id.equals(currentUser._id))
+      return res.status(400).json({ error: "Cannot follow yourself" });
+
+    if (userToFollow.followers.includes(currentUser._id))
+      return res.status(400).json({ error: "Already following" });
+
+    userToFollow.followers.push(currentUser._id);
+    currentUser.following.push(userToFollow._id);
+
+    await userToFollow.save();
+    await currentUser.save();
+
+    res.json({ msg: `You are now following ${userToFollow.username}` });
+  } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 };
 
-// LOGIN
-exports.login = async (req, res) => {
+// UNFOLLOW USER
+exports.unfollowUser = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const userToUnfollow = await User.findById(req.params.id);
+    const currentUser = await User.findById(req.user.id);
 
-    if (!username || !password)
-      return res.status(400).json({ error: "Username and password are required" });
+    if (!userToUnfollow) return res.status(404).json({ error: "User not found" });
 
-    const user = await User.findOne({ username });
+    if (!userToUnfollow.followers.includes(currentUser._id))
+      return res.status(400).json({ error: "Not following this user" });
+
+    userToUnfollow.followers.pull(currentUser._id);
+    currentUser.following.pull(userToUnfollow._id);
+
+    await userToUnfollow.save();
+    await currentUser.save();
+
+    res.json({ msg: `You unfollowed ${userToUnfollow.username}` });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// GET FOLLOWERS
+exports.getFollowers = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .populate("followers", "username dp");
+
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: "Invalid password" });
+    res.json({ followers: user.followers });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || "swaplegends",
-      { expiresIn: "7d" }
-    );
+// GET FOLLOWING
+exports.getFollowing = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .populate("following", "username dp");
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({ following: user.following });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// UPDATE PROFILE
+// UPDATE PROFILE (Cloudinary Version)
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Only allow the logged user to update their own profile
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    const updates = {};
+
+    // Username + Bio update
+    if (req.body.username) updates.username = req.body.username;
+    if (req.body.bio) updates.bio = req.body.bio;
+
+    // DP update (Cloudinary URL arrives in req.file.path)
+    if (req.file) {
+      updates.dp = `/uploads/${req.file.filename}`;
+    }
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true }
+    ).select("-password");
 
     res.json({
-      msg: "Login successful",
-      token,
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        dp: user.dp,
-      },
+      msg: "Profile updated successfully",
+      user: updatedUser
     });
 
   } catch (err) {
-    console.error("Login Error:", err);
+    console.error("Update Profile Error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.searchUsers = async (req, res) => {
+  try {
+    const query = req.params.query;
+
+    const users = await User.find({
+      username: { $regex: query, $options: "i" }
+    }).select("username dp _id");
+
+    res.json(users);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
