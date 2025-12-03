@@ -113,28 +113,28 @@ exports.getFollowing = async (req, res) => {
   }
 };
 
+const User = require("../models/User");
+const Post = require("../models/Post");
+
 // UPDATE PROFILE
-// UPDATE PROFILE (Cloudinary Version)
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.params.id;
 
-    // Only allow the logged user to update their own profile
     if (req.user.id !== userId) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
     const updates = {};
 
-    // Username + Bio update
     if (req.body.username) updates.username = req.body.username;
     if (req.body.bio) updates.bio = req.body.bio;
 
-    // DP update (Cloudinary URL arrives in req.file.path)
+    // DP FIX — normalize slashes
     if (req.file) {
-      updates.dp = `/uploads/${req.file.filename}`;
+      updates.dp = `uploads/${req.file.filename}`.replace(/\\/g, "/");
     }
-    
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updates },
@@ -149,19 +149,5 @@ exports.updateProfile = async (req, res) => {
   } catch (err) {
     console.error("Update Profile Error:", err);
     res.status(500).json({ error: "Server error" });
-  }
-};
-
-exports.searchUsers = async (req, res) => {
-  try {
-    const query = req.params.query;
-
-    const users = await User.find({
-      username: { $regex: query, $options: "i" }
-    }).select("username dp _id");
-
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 };

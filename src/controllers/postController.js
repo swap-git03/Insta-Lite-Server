@@ -1,5 +1,5 @@
 const Post = require("../models/Post");
-const User = require("../models/User");   // ← YOU FORGOT THIS
+const User = require("../models/User");
 
 // CREATE POST
 exports.createPost = async (req, res) => {
@@ -10,10 +10,12 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ error: "Image is required" });
     }
 
+    const imagePath = `uploads/${req.file.filename}`.replace(/\\/g, "/");
+
     const post = await Post.create({
-      user: req.user.id, // FIXED — correct user id
+      user: req.user.id,
       caption,
-      image: `/uploads/${req.file.filename}`,
+      image: imagePath,
     });
 
     res.status(201).json({ msg: "Post created successfully", post });
@@ -37,6 +39,19 @@ exports.getAllPosts = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
+};
+
+// FEED
+exports.getFeed = async (req, res) => {
+  const user = await User.findById(req.user.id).select("following");
+  const ids = [req.user.id, ...user.following];
+
+  const posts = await Post.find({ user: { $in: ids } })
+    .populate("user", "username dp")
+    .populate("comments.user", "username dp")
+    .sort({ createdAt: -1 });
+
+  res.json(posts);
 };
 
 // getFeedPosts

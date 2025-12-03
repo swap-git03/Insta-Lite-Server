@@ -3,7 +3,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 // REGISTER
-// REGISTER (Cloudinary Ready)
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -11,7 +10,6 @@ exports.register = async (req, res) => {
     if (!username || !email || !password)
       return res.status(400).json({ error: "Username, email, and password are required" });
 
-    // Check if user exists
     const existingUser = await User.findOne({
       $or: [{ username }, { email }],
     });
@@ -21,10 +19,11 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    let dpPath = req.file ? `/uploads/${req.file.filename}` : "/default_dp.png";
+    // FIXED — removes backslashes if multer creates them
+    let dpPath = req.file
+      ? `uploads/${req.file.filename}`.replace(/\\/g, "/")
+      : "default_dp.png";
 
-
-    // Create user
     const user = await User.create({
       username,
       email,
@@ -47,7 +46,6 @@ exports.register = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-
 
 // LOGIN
 exports.login = async (req, res) => {
