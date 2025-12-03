@@ -21,11 +21,8 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // If DP uploaded, Cloudinary gives URL in req.file.path
-    let dpPath = req.file?.path || null;
+    let dpPath = req.file ? `/uploads/${req.file.filename}` : "/default_dp.png";
 
-    // Default DP if none uploaded
-    if (!dpPath) dpPath = "https://res.cloudinary.com/demo/image/upload/v1690000000/default_dp.png";
 
     // Create user
     const user = await User.create({

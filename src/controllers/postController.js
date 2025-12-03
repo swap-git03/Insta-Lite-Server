@@ -13,7 +13,7 @@ exports.createPost = async (req, res) => {
     const post = await Post.create({
       user: req.user.id, // FIXED — correct user id
       caption,
-      image: req.file.path,
+      image: `/uploads/${req.file.filename}`,
     });
 
     res.status(201).json({ msg: "Post created successfully", post });

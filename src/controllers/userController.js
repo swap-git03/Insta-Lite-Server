@@ -131,10 +131,10 @@ exports.updateProfile = async (req, res) => {
     if (req.body.bio) updates.bio = req.body.bio;
 
     // DP update (Cloudinary URL arrives in req.file.path)
-    if (req.file && req.file.path) {
-      updates.dp = req.file.path;   // Cloudinary URL
+    if (req.file) {
+      updates.dp = `/uploads/${req.file.filename}`;
     }
-
+    
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updates },
