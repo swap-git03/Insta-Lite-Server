@@ -11,14 +11,20 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) {
+    // Check duplicate username
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ error: "Username already taken" });
+    }
+
+    // Check duplicate email
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
       return res.status(400).json({ error: "Email already registered" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // If a DP was uploaded → save local path
     let dp = null;
     if (req.file) {
       dp = `/uploads/${req.file.filename}`.replace(/\\/g, "/");
@@ -35,6 +41,7 @@ exports.register = async (req, res) => {
       msg: "User registered successfully",
       user: {
         id: user._id,
+        _id: user._id,
         username: user.username,
         email: user.email,
         dp: user.dp,
@@ -46,17 +53,22 @@ exports.register = async (req, res) => {
   }
 };
 
-// LOGIN
+
+
+// LOGIN (USERNAME ONLY)
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    const user = await User.findOne({ email });
+    // Find user by username
+    const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    // Validate password
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ error: "Invalid credentials" });
 
+    // Generate token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
@@ -66,6 +78,7 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user._id,
+        _id: user._id,
         username: user.username,
         email: user.email,
         dp: user.dp,

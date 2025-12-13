@@ -5,7 +5,6 @@ const Post = require("../models/Post");
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
-
     if (!user) return res.status(404).json({ error: "User not found" });
 
     res.json(user);
@@ -17,9 +16,8 @@ exports.getProfile = async (req, res) => {
 // GET USER POSTS
 exports.getUserPosts = async (req, res) => {
   try {
-    const posts = await Post.find({ user: req.params.id }).sort({
-      createdAt: -1,
-    });
+    const posts = await Post.find({ user: req.params.id })
+      .sort({ createdAt: -1 });
 
     res.json(posts);
   } catch (err) {
@@ -49,8 +47,10 @@ exports.followUser = async (req, res) => {
     if (userToFollow._id.equals(currentUser._id))
       return res.status(400).json({ error: "Cannot follow yourself" });
 
-    if (userToFollow.followers.includes(currentUser._id))
-      return res.status(400).json({ error: "Already following" });
+    // FIXED — don't throw error
+    if (userToFollow.followers.includes(currentUser._id)) {
+      return res.json({ msg: "Already following" });
+    }
 
     userToFollow.followers.push(currentUser._id);
     currentUser.following.push(userToFollow._id);
@@ -64,6 +64,7 @@ exports.followUser = async (req, res) => {
   }
 };
 
+
 // UNFOLLOW USER
 exports.unfollowUser = async (req, res) => {
   try {
@@ -73,10 +74,10 @@ exports.unfollowUser = async (req, res) => {
     if (!userToUnfollow)
       return res.status(404).json({ error: "User not found" });
 
-    if (!userToUnfollow.followers.includes(currentUser._id))
-      return res
-        .status(400)
-        .json({ error: "Not following this user" });
+    // FIXED — don't throw error
+    if (!userToUnfollow.followers.includes(currentUser._id)) {
+      return res.json({ msg: "Already unfollowed" });
+    }
 
     userToUnfollow.followers.pull(currentUser._id);
     currentUser.following.pull(userToUnfollow._id);
@@ -90,13 +91,12 @@ exports.unfollowUser = async (req, res) => {
   }
 };
 
+
 // GET FOLLOWERS
 exports.getFollowers = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate(
-      "followers",
-      "username dp"
-    );
+    const user = await User.findById(req.params.id)
+      .populate("followers", "username dp");
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -109,10 +109,8 @@ exports.getFollowers = async (req, res) => {
 // GET FOLLOWING
 exports.getFollowing = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate(
-      "following",
-      "username dp"
-    );
+    const user = await User.findById(req.params.id)
+      .populate("following", "username dp");
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -127,18 +125,17 @@ exports.updateProfile = async (req, res) => {
   try {
     const userId = req.params.id;
 
-    // Only allow the logged-in user to update their own profile
+    // Only allow editing self
     if (req.user.id !== userId) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
     const updates = {};
 
-    // Username + Bio update
     if (req.body.username) updates.username = req.body.username;
     if (req.body.bio) updates.bio = req.body.bio;
 
-    // DP update (local upload: /uploads/<filename>)
+    // Local DP upload
     if (req.file) {
       updates.dp = `/uploads/${req.file.filename}`.replace(/\\/g, "/");
     }

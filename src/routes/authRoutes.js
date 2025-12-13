@@ -4,7 +4,7 @@ const router = express.Router();
 const { register, login } = require("../controllers/authController");
 const upload = require("../middleware/multer");
 
-// Register with optional DP upload
+// Register (optional DP upload)
 router.post("/register", upload.single("dp"), register);
 
 // Login
